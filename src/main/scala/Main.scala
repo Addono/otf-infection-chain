@@ -79,7 +79,7 @@ object Main {
 
         println("-------------------")
         println(vertices.count() + " " + edges.count())
-        graph.triplets.collect().foreach { v => println(v.srcAttr._1 + "\t=>\t" + v.dstAttr._1 + "\t" + (v.attr % 1586510000000L)) }
+//        graph.triplets.collect().foreach { v => println(v.srcAttr._1 + "\t=>\t" + v.dstAttr._1 + "\t" + v.attr) }
       }
 
     val infectionsStream = KafkaUtils.createDirectStream[String, String](
@@ -95,10 +95,12 @@ object Main {
     kafkaProducerProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
 
     var infectedUsers = streamingContext.sparkContext.emptyRDD[(VertexId, (String, Long))]
+    var emittedRiskIndications = streamingContext.sparkContext.emptyRDD[(VertexId, (String, (Int, Long)))]
 
     infectionsStream
-      .map(m => m.value() -> m.timestamp()) // Get only the value
-      .map { case (userId, timestamp) => (nnHash(userId) -> (userId, timestamp)) } // Key by the hash
+      .map(_.value.split(",")) // Get only the value
+      .map(m => m(0) -> m(1).toLong) // Drop all but the first two values
+      .map { case (userId: String, timestamp: Long) => (nnHash(userId) -> (userId, timestamp)) } // Key by the hash
       .foreachRDD { rdd =>
         // Add new infected users to the infectedUsers RDD
         infectedUsers = infectedUsers.fullOuterJoin(rdd)
@@ -117,9 +119,28 @@ object Main {
             }
           }
 
-        val infectedGraph: Graph[(String, Map[Int, VertexId]), VertexId] = Graph(infectedGraphVertices, contacts)
+        val infectedGraph: Graph[(String, Map[Int, VertexId]), VertexId] = Graph(infectedGraphVertices, graph.edges)
 
-        ComputeAtRisk(infectedGraph)
+        val atRiskGraph = ComputeAtRisk(infectedGraph)
+
+        val riskIndications = atRiskGraph.vertices
+          .flatMapValues { case (userId: String, risk: Map[Int, VertexId]) =>
+            risk.toIterator.map(userId -> _)
+          }
+
+        val newRiskIndications = riskIndications.subtract(emittedRiskIndications)
+
+        newRiskIndications
+          .map { case (vertexId: VertexId, (userId: String, (level: Int, ts: Long))) => new ProducerRecord[String, String]("at_risk", null, "%s,%s,%s".format(userId, level, ts)) }
+          // Publish all messages to Kafka
+          .foreachPartition { records =>
+            val producer = new KafkaProducer[String, String](kafkaProducerProperties);
+
+            records.foreach(producer.send)
+          }
+
+        // Update the emitted risk indications list with the newly emitted ones
+        emittedRiskIndications = emittedRiskIndications.union(newRiskIndications)
       }
 
     // Start the computation

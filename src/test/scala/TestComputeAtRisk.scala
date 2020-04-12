@@ -120,7 +120,7 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
     // Arrange
     val vertices: RDD[(VertexId, (String, Map[Int, Long]))] = sc.parallelize(Seq(
       2L -> ("bar", Map(1 -> 100L)),
-      3L -> ("bar", Map())
+      3L -> ("baz", Map())
     ))
     val edges: RDD[Edge[Long]] = sc.parallelize(Seq(
       Edge(2L, 3L, 200L)
@@ -133,7 +133,30 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
     // Assert
     val expectedVertices = Array(
       2L -> ("bar", Map(1 -> 100L)),
-      3L -> ("bar", Map())
+      3L -> ("baz", Map())
+    )
+    assert(atRiskGraph.vertices.collect === expectedVertices)
+    assert(atRiskGraph.edges.collect === graph.edges.collect)
+  }
+
+  test("Updates time when an earlier infection traverses") {
+    // Arrange
+    val vertices: RDD[(VertexId, (String, Map[Int, Long]))] = sc.parallelize(Seq(
+      1L -> ("foo", Map(1 -> 100L)),
+      2L -> ("bar", Map(2 -> 200L))
+    ))
+    val edges: RDD[Edge[Long]] = sc.parallelize(Seq(
+      Edge(1L, 2L, 150L)
+    ))
+    val graph: Graph[(String, Map[Int, VertexId]), VertexId] = Graph(vertices, edges)
+
+    // Act
+    val atRiskGraph = ComputeAtRisk(graph)
+
+    // Assert
+    val expectedVertices = Array(
+      1L -> ("foo", Map(1 -> 100L)),
+      2L -> ("bar", Map(2 -> 150L)) // This should match the connection occurrence time,
     )
     assert(atRiskGraph.vertices.collect === expectedVertices)
     assert(atRiskGraph.edges.collect === graph.edges.collect)

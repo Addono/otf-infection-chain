@@ -47,3 +47,9 @@ Which will give messages formatted as `$userId,$level,$timestamp`, where `$level
 bar,0,0
 gas,1,1586705689509
 ```
+
+## Test
+To run the tests, run:
+```bash
+sbt test
+```

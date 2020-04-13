@@ -10,7 +10,11 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-graphx" % "2.4.5",
   "org.apache.spark" %% "spark-streaming-kafka-0-10" % "2.4.5",
   "com.holdenkarau" %% "spark-testing-base" % "2.4.5_0.14.0" % "test",
+  "org.scalactic" %% "scalactic" % "3.1.1",
+  "org.scalatest" %% "scalatest" % "3.1.1" % "test"
 )
+
+//resolvers += "Artima Maven Repository" at "http://repo.artima.com/releases"
 
 scalacOptions += "-target:jvm-1.8"
 

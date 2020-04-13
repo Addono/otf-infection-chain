@@ -1,9 +1,10 @@
 import com.holdenkarau.spark.testing.SharedSparkContext
-import org.apache.spark.graphx.{Edge, Graph, VertexId, VertexRDD}
+import org.apache.spark.graphx.{Edge, Graph, VertexId}
 import org.apache.spark.rdd.RDD
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers._
 
-class TestComputeAtRisk extends FunSuite with SharedSparkContext {
+class TestComputeAtRisk extends AnyFunSuite with SharedSparkContext {
 
   test("Nothing changes when there are no infections") {
     val vertices: RDD[(VertexId, (String, Map[Int, Long]))] = sc.parallelize(Seq(
@@ -17,8 +18,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
 
     val atRiskGraph = ComputeAtRisk(graph)
 
-    assert(atRiskGraph.vertices.collect === graph.vertices.collect)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs graph.vertices.collect
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
   test("Can propagate to later connected user") {
@@ -40,8 +41,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
       1L -> ("foo", Map(0 -> 50L)),
       2L -> ("bar", Map(1 -> 100L)) // 2 got marked as at-risk at the time the contact happened
     )
-    assert(atRiskGraph.vertices.collect === expectedVertices)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs expectedVertices
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
   test("Cannot propagate to earlier connected user") {
@@ -63,8 +64,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
       1L -> ("foo", Map(0 -> 150L)),
       2L -> ("bar", Map()) // 2 did not get marked as at risk
     )
-    assert(atRiskGraph.vertices.collect === expectedVertices)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs expectedVertices
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
   test("Cannot propagate against the direction of the connection") {
@@ -86,8 +87,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
       1L -> ("foo", Map()), // User 1 is not infected
       2L -> ("bar", Map(0 -> 50L))
     )
-    assert(atRiskGraph.vertices.collect === expectedVertices)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs expectedVertices
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
   test("Can propagate multiple steps") {
@@ -112,8 +113,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
       2L -> ("bar", Map(1 -> 100L)),
       3L -> ("baz", Map(2 -> 200L))
     )
-    assert(atRiskGraph.vertices.collect === expectedVertices)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs expectedVertices
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
   test("Cannot exceed defined depth") {
@@ -135,8 +136,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
       2L -> ("bar", Map(1 -> 100L)),
       3L -> ("baz", Map())
     )
-    assert(atRiskGraph.vertices.collect === expectedVertices)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs expectedVertices
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
   test("Updates time when an earlier infection traverses") {
@@ -158,8 +159,8 @@ class TestComputeAtRisk extends FunSuite with SharedSparkContext {
       1L -> ("foo", Map(1 -> 100L)),
       2L -> ("bar", Map(2 -> 150L)) // This should match the connection occurrence time,
     )
-    assert(atRiskGraph.vertices.collect === expectedVertices)
-    assert(atRiskGraph.edges.collect === graph.edges.collect)
+    atRiskGraph.vertices.collect should contain theSameElementsAs expectedVertices
+    atRiskGraph.edges.collect should contain theSameElementsAs graph.edges.collect
   }
 
 }
